@@ -30,9 +30,6 @@ from statsmodels.stats.proportion import proportions_ztest
 import utils.functions
 
 
-#### ---> REVISA TODO EL CÓDIGO PORQUE PARECE QUE SE IMPORTA DE FORMA ERRÓNEA EL CSV <--- HAS PUESTO EL CD DE LOS CSVs EN DATA
-#### CAMBIA EL DF_NBA A DF_NBA_2 EN LA PARTE DE PROCESADO :)
-
 ## Carga de datos
 
 page = 0 
@@ -125,6 +122,7 @@ df_nba = df_nba.loc[(df_nba.nombre_jugador != 'Michaela Pavlickova')]
 df_nba.to_csv('/home/inma/Escritorio/The Bridge/Data_Science_Curso/Clase/Repository_Inma/ML/ML_NBA_Inma Jimenez/scr/data/raw_files/data_nba.csv', index = False)
 
 
+
 ## Procesado de datos
 data_nba = pd.read_csv('/home/inma/Escritorio/The Bridge/Data_Science_Curso/Clase/Repository_Inma/ML/ML_NBA_Inma Jimenez/scr/data/raw_files/data_nba.csv')
 
@@ -194,29 +192,23 @@ df_nba.loc[((df_nba['nombre_jugador'] == 'Lou Williams') & (df_nba['pir_medio_to
 df_nba.to_csv('/home/inma/Escritorio/The Bridge/Data_Science_Curso/Clase/Repository_Inma/ML/ML_NBA_Inma Jimenez/scr/data/processed_files/data_nba_processed.csv', index = False)
 
 
+
 ## Entrenamiento del modelo
 
 data_nba_2 = pd.read_csv('/home/inma/Escritorio/The Bridge/Data_Science_Curso/Clase/Repository_Inma/ML/ML_NBA_Inma Jimenez/scr/data/processed_files/data_nba_processed.csv')
 
 df_nba_2 = data_nba_2.loc[(data_nba_2['temporada'] != '2022-2023')]
 
-# Se divide el DataSet en train ('df_train') y test ('df_test')
-
-df_train, df_test = train_test_split(df_nba_2, 
-                                     test_size = 0.2,
-                                     random_state = 0)
-
 
 '''
-Se pretende predecir el PIR de los jugadores. El PIR es una medida calculada a través de otras features de este
-DataSet, por ello se eliminan las features utilizadas para conformarla y aquellas que correlacionen altamente
-con las variables a través de las que se calcula el PIR medio.
+Se pretende predecir el PIR de los jugadores. El PIR es una medida calculada a través de otras features de este DataSet, por ello se eliminan las features 
+utilizadas para conformar esa feature y aquellas que correlacionen altamente con las variables a través de las que se calcula el PIR medio.
 Posteriormente se observa la correlación entre el PIR medio de los jugadores y el resto de las features.
 
 '''
-df_train_copy = df_train.copy()
+df_final = df_nba_2.copy()
 
-df_train_copy.drop(columns = ['asistencias_total', 'tapones_total', 'tce_total', 'tle_total', 'tte_total',
+df_final.drop(columns = ['asistencias_total', 'tapones_total', 'tce_total', 'tle_total', 'tte_total',
                               'puntos_total', 'rebotes_total', 'robos_total', 'tci_total', 'tli_total', 
                               'tti_total', 'perdidas_total', 'faltas_total', 'faltas_tecnicas_total', 
                               'partidos_jugados', 'asistencias_pp', 'tapones_pp', 'eficiencia_tiro_pp', 'tci_pp',
@@ -227,14 +219,11 @@ df_train_copy.drop(columns = ['asistencias_total', 'tapones_total', 'tce_total',
                               'reb_def_total', 'reb_of_total'],
                    inplace = True)
 
-df_train_copy.drop(columns = ['minutos_total', 'altura', 'peso_kg', 'id_jugador', 'draft_anio', 'anio'],
+df_final.drop(columns = ['minutos_total', 'altura', 'peso_kg', 'id_jugador', 'draft_anio', 'anio'],
                    inplace = True)
 
 
 # GridSearch
-
-# Se hace una copia del conjunto Train
-df_train_copy_6 = df_train_copy.copy()
 
 # Se transforma la variable 'posicion' de categórica a numérica haciendo un 'Ordinal Encoding'
 posicion_dict = {'Base': 0,
@@ -244,17 +233,15 @@ posicion_dict = {'Base': 0,
                  'Escolta-Alero': 4, 
                  'Ala-Escolta': 5 
                 }
-df_train_copy_6['posicion_juego'] = df_train_copy_6.posicion_juego.replace(posicion_dict)
-X_6 = df_train_copy_6.drop(columns = ["pir_medio_total", 'temporada','nombre_jugador',
+
+df_final['posicion_juego'] = df_final.posicion_juego.replace(posicion_dict)
+
+X_6 = df_final.drop(columns = ["pir_medio_total", 'temporada','nombre_jugador',
                                       'ciudad_equipo','nombre_equipo', 'conferencia'])
 
-y_6 = df_train_copy_6["pir_medio_total"]
-X_train_6, X_test_6, y_train_6, y_test_6 = train_test_split(X_6,
-                                                            y_6,
-                                                            test_size = 0.2,
-                                                            random_state = 24)
+y_6 = df_final["pir_medio_total"]
 
-
+# Se definen los hiperparámetros del GridSearch
 param_grid = {'learning_rate': [0.01,0.02,0.03,0.04],
               'subsample'    : [0.9, 0.5, 0.2, 0.1],
               'n_estimators' : [100,500,1000, 1500],
@@ -263,6 +250,7 @@ param_grid = {'learning_rate': [0.01,0.02,0.03,0.04],
 
 gb_model_6 = GradientBoostingRegressor()
 
+# Se lleva a cabo el GridSearch
 grid_search = GridSearchCV(gb_model_6,
                            param_grid,
                            cv=5, 
@@ -270,12 +258,12 @@ grid_search = GridSearchCV(gb_model_6,
                            n_jobs = -1
                           )
 
-
-grid_search.fit(X_train_6, y_train_6)
+# Se entrena el modelo
+grid_search.fit(X_6, y_6)
 
 grid_search.best_params_
 grid_search.best_score_
-grid_search.best_estimator_.score(X_test_6, y_test_6)
+grid_search.best_estimator_.score(X_6, y_6)
 
 # Se crea el modelo con los best params obtenidos
 model_grid_final = GradientBoostingRegressor(learning_rate = 0.04, 
@@ -284,22 +272,6 @@ model_grid_final = GradientBoostingRegressor(learning_rate = 0.04,
                                              subsample = 0.2
                                             )
 
-# Se prueba en Test
-df_test_copy_6 = df_test.copy()
-df_test_copy_6['posicion_juego'] = df_test_copy_6.posicion_juego.replace(posicion_dict)
-X_test_final_6 = df_test_copy_6.drop(columns = ["pir_medio_total", 'temporada','nombre_jugador',
-                                                'ciudad_equipo','nombre_equipo', 'conferencia'])
-
-
-y_test_final_6 = df_test_copy_6["pir_medio_total"]
-
-model_grid_final.fit(X_test_final_6, y_test_final_6)
-pred_test_final_6 = model_grid_final.predict(X_test_final_6)
-
-metrics.mean_absolute_error(y_test_final_6, pred_test_final_6)
-metrics.mean_squared_error(y_test_final_6, pred_test_final_6)
-np.sqrt(metrics.mean_squared_error(y_test_final_6, pred_test_final_6))
-model_grid_final.score(X_test_final_6, y_test_final_6)
 
 # Se guarda el modelo
 with open('/home/inma/Escritorio/The Bridge/Data_Science_Curso/Clase/Repository_Inma/ML/ML_NBA_Inma Jimenez/scr/model_withparams_finished.model', 'wb') as file:
