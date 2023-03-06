@@ -1,7 +1,3 @@
-
-## **from util.functions.NOMBRE_DE_LA_FUNCION() para importar una función específica
-##utils.functions.NOMBRE_DE_LA_FUNCION()
-
 import json
 import matplotlib.pyplot as plt
 import numpy as np
